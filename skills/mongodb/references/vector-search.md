@@ -118,8 +118,8 @@ function rrfFuse(resultSets, k = 60) {
 const merged = rrfFuse([vectorResults, textResults]);
 ```
 
-### Alternative: `vectorSearch` inside `$search`
-MongoDB also supports a `vectorSearch` **operator** within a `$search` stage (distinct from the `$vectorSearch` aggregation stage). This uses an Atlas Search index with vector fields and enables single-pipeline hybrid search — combining text, fuzzy, phrase, and vector queries without client-side RRF. Check Atlas Search docs for syntax and index requirements.
+### Alternative: `vectorSearch` Operator inside `$search` Stage
+MongoDB also supports a `vectorSearch` **operator** within a `$search` compound query. This is **not** the same as the `$vectorSearch` aggregation stage — it is a search operator that runs inside a `$search` stage using an Atlas Search index (not a vectorSearch index). This enables single-pipeline hybrid search — combining text, fuzzy, phrase, and vector queries in one `$search` compound without client-side RRF. This does not contradict the "`$search` + `$vectorSearch` can't combine" rule, because no `$vectorSearch` aggregation stage is involved. Check Atlas Search docs for syntax and index requirements.
 
 ## Quantization
 

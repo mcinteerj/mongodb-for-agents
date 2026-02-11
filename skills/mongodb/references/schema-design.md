@@ -113,7 +113,7 @@ Small cardinality: array of IDs on one/both sides. Large cardinality: junction c
 
 ## Document Size
 
-- **Hard limit**: 16MB. Target: <1MB for most docs.
+- **Hard limit**: 16MB — this is a hard cap, not a target. For optimal cache and network performance, target <100KB per document (see performance.md). Target <1MB for most docs.
 - **Working set**: Frequently-accessed docs should fit in RAM. Large docs waste cache.
 - **Too large** → Subset pattern. **Too many tiny** → Bucket pattern. **Unbounded arrays** → Reference + Outlier.
 - **Projections help** but don't fix underlying I/O cost of reading large docs from disk.

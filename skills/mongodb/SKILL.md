@@ -26,7 +26,7 @@ All reference files live in `references/` relative to this skill directory.
 
 ### `docs-navigation.md`
 **YOU MUST read when:** navigating official MongoDB documentation, searching for specific driver APIs, or unsure where to find authoritative answers.
-Contains: URL patterns for docs.mongodb.com, driver doc locations, manual section map, how to find version-specific content.
+Contains: URL patterns for docs.mongodb.com, driver docs table (PyMongo, Node, Java, Go, etc.), search strategy and tooling recommendations, manual section map, how to find version-specific content.
 
 ### `schema-design.md`
 **YOU MUST read when:** designing a new collection, choosing between embedding and referencing, modeling one-to-many or many-to-many relationships, or restructuring existing documents.
@@ -42,7 +42,7 @@ Contains: Stage ordering for performance, pipeline optimization rules, `$facet` 
 
 ### `performance.md`
 **YOU MUST read when:** diagnosing slow queries, reading explain plans, tuning connection pools, profiling database operations, or capacity planning.
-Contains: Explain plan interpretation, profiler configuration, connection pool sizing, WiredTiger cache tuning, read/write concern trade-offs, oplog sizing for replication lag.
+Contains: Explain plan interpretation, profiler configuration, connection pool sizing, WiredTiger cache tuning, read/write concern trade-offs (consistency vs latency implications), oplog sizing for replication lag.
 
 ### `atlas-search.md`
 **YOU MUST read when:** implementing full-text search, configuring Atlas Search indexes, using `$search` or `$searchMeta`, or choosing analyzers.

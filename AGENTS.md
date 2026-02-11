@@ -11,7 +11,7 @@ Use the MongoDB MCP server for direct database interaction:
 
 - Think in **documents, not tables**. Embed related data; don't default to joins.
 - Design schemas for **access patterns first**. Ask "how will this be queried?" before modeling.
-- Run `explain()` on **every non-trivial query**. Check `winningPlan`, `totalDocsExamined`, `executionTimeMillis`.
+- Run `explain()` on **every non-trivial query**. Check `winningPlan`, `totalDocsExamined`, `totalKeysExamined`, `nReturned`, `executionTimeMillis`. The ratio `totalDocsExamined/nReturned` should be close to 1 — higher means wasted work.
 - Use `$lookup` sparingly — it's a red flag that the schema may need restructuring.
 - Prefer **aggregation pipelines** over client-side data manipulation.
 - Use **bulk operations** (`bulkWrite`, `insertMany`) for batch work.

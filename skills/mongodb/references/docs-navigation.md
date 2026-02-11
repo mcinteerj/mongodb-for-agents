@@ -81,6 +81,8 @@ Default `/manual/` = latest stable. Pin only for version-specific debugging.
 3. **`firecrawl scrape {url}`** — to extract page content. MongoDB docs are JS-rendered; `trafilatura` fails on them.
 4. **Development hub** (`/docs/development/`) — best single-page index for orientation across all dev topics.
 
+> **Note:** Tool recommendations above (firecrawl, trafilatura, brave-search) are suggestions. Agents should use whatever web fetching tools they have available — any HTTP client, browser automation, or MCP-based fetch tool will work.
+
 ## Gotchas
 
 - **Search & Vector Search docs live under `/atlas/`** even for self-managed deployments.
