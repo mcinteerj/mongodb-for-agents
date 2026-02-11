@@ -47,6 +47,8 @@ db.createRole({
 
 **Rule**: If an agent only touches 2 collections, it gets exactly 2 collection privileges. No inherited roles.
 
+Discover available actions: `db.adminCommand({listActionTypes: 1})`. Roles are defined on a specific DB — use `admin` DB for cluster-wide custom roles.
+
 ## Connection String Security
 
 ### Patterns
@@ -85,6 +87,15 @@ Use AWS Secrets Manager, HashiCorp Vault, or cloud IAM. Rotate credentials on a 
 
 ## Client-Side Encryption Comparison
 
+### Automatic vs Explicit CSFLE
+
+| Mode | How It Works | Version |
+|------|-------------|---------|
+| **Automatic** | Encrypted fields defined in JSON schema; driver handles transparently | 4.2+ |
+| **Explicit** | Manual `encrypt()`/`decrypt()` calls per field; full control | 4.0+ |
+
+### CSFLE vs Queryable Encryption
+
 | Feature | CSFLE (4.2+) | Queryable Encryption (7.0+) |
 |---------|-------------|----------------------------|
 | Equality queries | Deterministic encryption only | Yes (fully random) |
@@ -121,12 +132,12 @@ PII (SSN, DOB, email, phone), financial data (card numbers, bank accounts), heal
 ## Encryption at Rest
 
 - **Atlas**: enabled by default. Customer-managed keys (CMK) available for compliance.
-- **Enterprise self-managed**: WiredTiger encrypted storage engine + KMIP integration.
+- **Enterprise self-managed**: WiredTiger encrypted storage engine (AES256-CBC default, AES256-GCM Linux only) + KMIP integration.
 - **Community**: use volume-level encryption (LUKS, EBS encryption).
 
 ## Audit Logging
 
-Minimum audit scope: auth events + DDL (schema changes). Enable CRUD auditing selectively on sensitive collections only (high volume impact).
+Minimum audit scope: auth events + DDL (schema changes). Enable CRUD auditing selectively on sensitive collections only (high volume impact). Atlas: use audit log download via API and integrate with SIEM.
 
 ```yaml
 auditLog:
@@ -144,10 +155,11 @@ auditLog:
 | `root` role for app accounts | Full cluster compromise | Scoped `readWrite` or custom role |
 | TLS disabled | Plaintext credentials on wire | `tls=true`; `--tlsMode requireTLS` |
 | `0.0.0.0/0` allowlist | DB exposed to internet | Specific CIDRs; private endpoints |
-| No auth on self-managed | Anyone with network access = admin | `security.authorization: enabled` |
+| No auth on self-managed | Anyone with network access = admin | `--auth` flag or `security.authorization: enabled` |
 | `tlsAllowInvalidCertificates: true` | MITM attacks | Always validate certs in production |
 | Stale credentials never rotated | Increased blast radius | Rotate; prefer short-lived tokens (IAM/OIDC) |
 | Sensitive fields stored unencrypted | PII exposed in breach | CSFLE or Queryable Encryption |
+| Overly broad network peering | Lateral movement risk | Least-privilege network access; segment VPCs |
 
 ## Quick Security Checklist
 
