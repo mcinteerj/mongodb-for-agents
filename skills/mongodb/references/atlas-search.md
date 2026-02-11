@@ -169,11 +169,61 @@ String facets require `token` field type. Number facets require `number` type.
 
 ## Synonyms
 
-Source collection (same DB): `{ "mappingType": "equivalent", "synonyms": ["car", "vehicle"] }`
+Source collection (same DB):
+- **Equivalent** (bidirectional): `{ "mappingType": "equivalent", "synonyms": ["car", "vehicle", "automobile"] }`
+- **Explicit** (unidirectional): `{ "mappingType": "explicit", "input": ["beer"], "synonyms": ["beer", "brew", "pint"] }`
 
 Index config: `"synonyms": [{ "name": "mySynonyms", "analyzer": "lucene.standard", "source": { "collection": "synonyms_col" } }]`
 
-Query: `{ text: { query: "car", path: "desc", synonyms: "mySynonyms" } }` — works with `text` and `phrase` only.
+Query: `{ text: { query: "car", path: "desc", synonyms: "mySynonyms" } }` — works with `text` and `phrase` only. Changes to source collection picked up automatically (no reindex).
+
+## Count (for pagination)
+
+```javascript
+db.collection.aggregate([{
+  $searchMeta: {
+    count: { type: "total" },  // or "lowerBound" for faster approximate
+    text: { query: "term", path: "field" }
+  }
+}])
+```
+
+### `$$SEARCH_META` (metadata alongside results)
+
+```javascript
+db.collection.aggregate([
+  { $search: { text: { query: "term", path: "field" } } },
+  { $addFields: { meta: "$$SEARCH_META" } }
+])
+```
+
+## Highlighting
+
+Field must be `string` type with `indexOptions: "offsets"` (default).
+
+```javascript
+db.collection.aggregate([
+  { $search: {
+    text: { query: "variety bunch", path: "description" },
+    highlight: { path: "description" }  // maxCharsToExamine, maxNumPassages available
+  }},
+  { $project: { description: 1, highlights: { $meta: "searchHighlights" } } }
+])
+```
+
+Output: `texts` array with `{ value, type }` where type is `"hit"` or `"text"`. Can highlight fields not in query path.
+
+## Atlas Search Index vs Regular Index
+
+| | Atlas Search Index | Regular MongoDB Index |
+|---|---|---|
+| Engine | Lucene (`mongot` sidecar) | WiredTiger (same `mongod`) |
+| Created via | `createSearchIndex()` / Atlas UI | `createIndex()` |
+| Query syntax | `$search` / `$searchMeta` stage | `find()`, `$match`, etc. |
+| Consistency | Eventually consistent (async to `mongot`) | Immediately consistent |
+| Supports | Full-text, fuzzy, autocomplete, facets, synonyms, scoring | Exact match, range, sort, unique, TTL, geo |
+
+**Completely separate systems.** One doesn't help the other. Need both if you use both query patterns.
 
 ## Common Mistakes
 
