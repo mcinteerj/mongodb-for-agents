@@ -22,7 +22,7 @@ db.orders.createIndex({ total: 1, status: 1, createdAt: 1 })
 
 **`$in` behavior**: <201 elements = equality (place early); ≥201 = range. `$ne`, `$nin`, `$regex` = always range.
 
-**ERS exception**: When range predicate is highly selective (filters >99% of docs), placing Range before Sort can win despite in-memory sort on the tiny result set.
+**ERS exception**: When range predicate is highly selective (very few matching docs), placing Range before Sort can win despite in-memory sort on the tiny result set.
 
 ## Index Type Quick Reference
 
@@ -46,6 +46,7 @@ Index alone satisfies the query — no `FETCH` stage. Requirements:
 1. All filter fields in the index
 2. All projected fields in the index
 3. `_id: 0` in projection (unless `_id` is in the index)
+4. No field in the query is compared to `null` (null checks require doc fetch)
 
 ```js
 db.inventory.createIndex({ type: 1, item: 1, qty: 1 })
@@ -90,6 +91,9 @@ db.collection.aggregate([{ $indexStats: {} }])
 // Check sizes
 db.collection.stats().indexSizes
 
+// Index builds: since 4.2, exclusive lock only at start/end (not full duration).
+// Monitor in-progress builds: db.currentOp({ "command.createIndexes": { $exists: true } })
+
 // Safe drop: hide → monitor → drop or unhide
 db.collection.hideIndex("index_name")
 // ... monitor for regression ...
@@ -111,7 +115,15 @@ db.tickets.createIndex({ tenantId: 1, priority: -1, createdAt: 1 })
 
 ### 2. Missing index on `$lookup` foreign field
 ```js
-// Every $lookup iteration does COLLSCAN without this:
+// Aggregation stage — foreignField MUST be indexed in the "from" collection
+{ $lookup: {
+    from: "orders",
+    localField: "_id",
+    foreignField: "customerId",   // ← index this field
+    as: "customerOrders"
+}}
+
+// Without this index, every $lookup iteration does a COLLSCAN:
 db.orders.createIndex({ customerId: 1 })
 ```
 
@@ -130,5 +142,8 @@ These are non-selective — they scan most of the index. Restructure the query o
 ### 7. Too many indexes
 Each index costs RAM + write amplification. Max 64 per collection. Audit with `$indexStats` regularly.
 
-### 8. Not running `explain()` after creating an index
+### 8. Relying on index intersection over compound indexes
+MongoDB can intersect multiple single-field indexes, but compound indexes almost always outperform intersection. Intersection can't provide covered queries or reliable sort support, and the optimizer may not choose it. Create compound indexes for known query patterns; treat intersection as a fallback for ad-hoc queries only.
+
+### 9. Not running `explain()` after creating an index
 Don't assume — verify the index is actually used and ratios are healthy.

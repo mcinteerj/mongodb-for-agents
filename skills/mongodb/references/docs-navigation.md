@@ -12,7 +12,7 @@ All URLs prefix: `https://www.mongodb.com/docs`
 | Manual Reference | `/manual/reference/{type}/` | `/manual/reference/command/` |
 | Agg Stages | `/manual/reference/operator/aggregation/{stage}/` | `.../aggregation/lookup/` |
 | Query Operators | `/manual/reference/operator/query/{op}/` | `.../query/eq/` |
-| Atlas | `/docs/atlas/{feature}/` | `/atlas/atlas-search/` |
+| Atlas | `/atlas/{feature}/` | `/atlas/atlas-search/` |
 | mongosh | `/mongodb-shell/` | — |
 | Database Tools | `/database-tools/` | — |
 | Atlas CLI | `/atlas/cli/current/` | — |

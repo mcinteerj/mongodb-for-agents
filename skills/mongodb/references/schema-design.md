@@ -34,6 +34,21 @@
 ### Many-to-Many → Array of refs or junction collection
 Small cardinality: array of IDs on one/both sides. Large cardinality: junction collection `{ student_id, course_id, enrolled_date }`.
 
+### User Permissions (Many-to-Many — Good vs Bad)
+
+```json
+// ❌ BAD: Full role objects embedded — duplicated permissions, update = touch every user
+{ "user": "Jake", "roles": [
+    { "role_id": "r1", "name": "admin", "permissions": [/* 200 perms */] }
+  ]
+}
+
+// ✅ GOOD: Extended reference for display, canonical roles separate
+// users: { "_id": "u1", "roles": [{ "role_id": "r1", "name": "admin" }] }
+// roles: { "_id": "r1", "name": "admin", "permissions": ["read", "write", "delete", ...] }
+// Permission check: lookup role by ID (cached). Display: no lookup needed. Role update: single doc.
+```
+
 ## Schema Patterns
 
 | Scenario | Pattern |
@@ -47,6 +62,7 @@ Small cardinality: array of IDs on one/both sides. Large cardinality: junction c
 | Category trees, org charts | **Tree** — materialized paths + ancestors array |
 | Many sparse filterable fields | **Attribute** — `[{k, v}]` array + single compound index |
 | Schema evolving over time | **Versioning** — `schema_version` field + lazy migration |
+| Old data rarely accessed | **Archive** — move cold docs to archive collection on schedule |
 
 ## Good vs Bad: Concrete Examples
 
@@ -100,6 +116,8 @@ Small cardinality: array of IDs on one/both sides. Large cardinality: junction c
 - **Hard limit**: 16MB. Target: <1MB for most docs.
 - **Working set**: Frequently-accessed docs should fit in RAM. Large docs waste cache.
 - **Too large** → Subset pattern. **Too many tiny** → Bucket pattern. **Unbounded arrays** → Reference + Outlier.
+- **Projections help** but don't fix underlying I/O cost of reading large docs from disk.
+- **Field names stored in every doc** — short names save space at scale (don't sacrifice readability for marginal gains).
 - **Binary data >16MB** → GridFS.
 
 ## Schema Versioning
@@ -138,9 +156,26 @@ db.createCollection("users", {
   validationLevel: "moderate",  // won't reject existing invalid docs on update
   validationAction: "error"     // "warn" during migration rollout
 })
+// NOTE: schema_version in `required` means existing docs without it will fail
+// validation on update (with "moderate") or always (with "strict"). Add field to
+// existing docs first, or use validationLevel: "moderate" during transition.
 ```
 
-**Polymorphic validation**: Use `oneOf` with discriminator field to validate different shapes in one collection.
+**Polymorphic validation** — use `oneOf` with discriminator to validate different shapes in one collection:
+
+```javascript
+db.createCollection("events", {
+  validator: { $jsonSchema: {
+    bsonType: "object", required: ["type", "timestamp"],
+    oneOf: [
+      { properties: { type: { enum: ["click"] }, element_id: { bsonType: "string" } },
+        required: ["element_id"] },
+      { properties: { type: { enum: ["purchase"] }, amount: { bsonType: "decimal" }, currency: { bsonType: "string" } },
+        required: ["amount", "currency"] }
+    ]
+  }}
+})
+```
 
 ## Anti-Patterns
 
