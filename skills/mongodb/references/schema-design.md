@@ -189,3 +189,4 @@ db.createCollection("events", {
 | No indexes on query fields | Collection scans | Index every query pattern |
 | `$lookup` in hot paths | Slow reads | Extended Reference pattern |
 | Generic key-value for everything | Loses type safety | Use typed fields; Attribute pattern only for truly variable specs |
+| Ignoring write patterns | Read-optimized schema suffers on updates | Design for both read AND write access patterns |

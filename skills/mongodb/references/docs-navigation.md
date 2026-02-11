@@ -30,10 +30,17 @@ Default `/manual/` = latest stable. Pin only for version-specific debugging.
 | Go | `/drivers/go/current/` |
 | C#/.NET | `/drivers/csharp/current/` |
 | Rust | `/drivers/rust/current/` |
-| Kotlin | `/languages/kotlin/coroutine-driver/current/` |
+| Kotlin | `/drivers/kotlin/coroutine/current/` |
+| Motor (async Python) | `/drivers/motor/` |
+| C++ | `/languages/cpp/cpp-driver/current/` |
+| PHP | `/drivers/php-drivers/` |
+| Ruby | `/drivers/ruby/current/` |
+| Swift | `/drivers/swift/current/` |
+| Scala | `/drivers/scala/current/` |
+| Mongoose (ODM) | External: [mongoosejs.com/docs](https://mongoosejs.com/docs) |
 | Drivers Hub | `/drivers/` |
 
-**Note**: PyMongo + Kotlin use `/languages/` path; others use `/drivers/`.
+**Note**: PyMongo + C++ use `/languages/` path; others use `/drivers/`. Mongoose is community-maintained, not MongoDB official docs.
 
 ## Key Landing Pages
 
