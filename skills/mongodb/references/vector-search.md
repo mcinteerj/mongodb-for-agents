@@ -1,5 +1,7 @@
 # Atlas Vector Search Reference
 
+> Requires Atlas **v6.0.11+** or **v7.0.2+**. Supports up to **8192 dimensions**.
+
 ## Vector Index Definition
 
 ```javascript
@@ -11,7 +13,7 @@ db.collection.createSearchIndex(
       {
         type: "vector",
         path: "embedding",       // field containing vectors
-        numDimensions: 1536,     // must match embedding model output exactly
+        numDimensions: 1536,     // must match embedding model output exactly (max 8192)
         similarity: "cosine"     // "cosine" | "euclidean" | "dotProduct"
       },
       { type: "filter", path: "category" },  // pre-filter fields
@@ -61,13 +63,14 @@ db.collection.aggregate([
 
 ## HNSW Tuning
 
-Atlas manages HNSW internals (`efConstruction`, `M`) — **not user-configurable** via index JSON.
+Atlas manages HNSW internals (`efConstruction`, `M`) — **not user-configurable** via standard index JSON API.
 
-The only user-facing knob is **`numCandidates`** at query time:
+> Note: Atlas UI may expose HNSW parameters on some tiers/versions. Check the JSON editor for your cluster.
+
+The primary user-facing knob is **`numCandidates`** at query time:
 - Controls recall vs latency tradeoff.
 - **Set ≥20× `limit`**. E.g., `limit: 5` → `numCandidates: 100+`.
-- Too low → poor recall, missing relevant results.
-- Too high → slower queries, diminishing returns.
+- Too low → poor recall. Too high → slower queries, diminishing returns.
 
 ## Pre-Filter vs Post-Filter
 
@@ -115,6 +118,23 @@ function rrfFuse(resultSets, k = 60) {
 const merged = rrfFuse([vectorResults, textResults]);
 ```
 
+### Alternative: `vectorSearch` inside `$search`
+MongoDB also supports a `vectorSearch` **operator** within a `$search` stage (distinct from the `$vectorSearch` aggregation stage). This uses an Atlas Search index with vector fields and enables single-pipeline hybrid search — combining text, fuzzy, phrase, and vector queries without client-side RRF. Check Atlas Search docs for syntax and index requirements.
+
+## Quantization
+
+Store vectors in compressed formats to reduce index size and cost:
+
+| Format | BSON Subtype | Storage vs float32 | Accuracy |
+|---|---|---|---|
+| `float32` | BinData vector | Baseline | Full |
+| `int8` (scalar) | BinData vector | ~25% of float32 | Near-full; good default tradeoff |
+| `int1` (binary) | BinData vector | ~3% of float32 | Lower; use for large-scale coarse retrieval |
+
+**How:** Convert/generate embeddings to target format before insertion. The vectorSearch index operates on whatever is stored — no separate quantization config in index JSON.
+
+**When to use:** Large collections where storage/memory cost matters. Start with `int8` for cost savings with minimal accuracy loss. Some providers output int8 natively (e.g., Cohere embed v3).
+
 ## RAG Pipeline Pattern
 
 ```
@@ -143,6 +163,8 @@ async function ragQuery(userQuery) {
 
 **Chunking:** 500–1000 tokens per chunk, 50–100 token overlap. Each chunk = one document with its own embedding + `parentDocId` + `chunkIndex` for traceability.
 
+**Hybrid RAG:** Combine vector + full-text via RRF (§Hybrid Search) for better retrieval — full-text catches exact keyword matches that embeddings miss.
+
 ## Embedding Storage Conventions
 
 ```javascript
@@ -152,6 +174,7 @@ async function ragQuery(userQuery) {
   title: "Document Title",
   category: "tech",                     // filterable metadata
   year: 2024,
+  source: "https://example.com/doc",    // provenance for RAG traceability
   embedding: [0.1, -0.02, ..., 0.3],   // float array or BSON vector BinData
   chunkIndex: 0,
   parentDocId: ObjectId("...")
@@ -160,17 +183,18 @@ async function ragQuery(userQuery) {
 
 - Field name: `embedding` (singular, top-level). Be consistent across collections.
 - Co-locate text + metadata + embedding in same document.
-- For storage savings: BSON vector subtype (`float32`, `int8` ~75% reduction, `int1` ~97% reduction).
+- For storage savings: BSON vector subtype (`float32`, `int8`, `int1`) — see §Quantization.
 
 ## Common Mistakes
 
 | Mistake | Fix |
 |---|---|
-| Wrong `numDimensions` | Must exactly match embedding model output |
+| Wrong `numDimensions` | Must exactly match embedding model output (max 8192) |
 | Wrong similarity metric | Use `cosine` for OpenAI/Cohere/most. Check model docs. |
 | `numCandidates` too low | Set ≥20× `limit` |
+| Not pre-filtering | Add `filter` type fields to index; use `filter` in `$vectorSearch` |
 | Filter field not in index | Add `{ type: "filter", path: "field" }` to index definition |
-| `$search` + `$vectorSearch` same pipeline | Impossible. Use RRF pattern. |
+| `$search` + `$vectorSearch` same pipeline | Impossible. Use RRF or `vectorSearch`-in-`$search` operator. |
 | `$vectorSearch` not first stage | Must always be first stage |
 | Post-filter shrinks results below limit | Switch to pre-filter or over-fetch then re-limit |
 | Query/doc embedding model mismatch | Same model for both. Always. |
