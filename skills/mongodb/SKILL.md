@@ -49,8 +49,8 @@ Contains: Explain plan interpretation, profiler configuration, connection pool s
 Contains: Index definition syntax, analyzer selection guide, compound operator usage, faceting, scoring modifiers, autocomplete configuration, search vs find decision guide.
 
 ### `vector-search.md`
-**YOU MUST read when:** implementing semantic search, RAG pipelines, storing embeddings, using `$vectorSearch`, or choosing vector index types.
-Contains: Vector index configuration (HNSW vs IVF), `$vectorSearch` syntax, embedding storage patterns, hybrid search (vector + keyword), pre-filter strategies, dimension/similarity considerations.
+**YOU MUST read when:** implementing semantic search, RAG pipelines, storing embeddings, using `$vectorSearch`, building hybrid search, or configuring vector indexes.
+Contains: Vector index definition with all parameters, `$vectorSearch` stage syntax, HNSW tuning (`numCandidates`), pre-filter vs post-filter patterns, hybrid search with RRF (why `$search` + `$vectorSearch` can't combine), RAG pipeline pattern, embedding storage conventions, common mistakes.
 
 ### `security.md`
 **YOU MUST read when:** configuring authentication, setting up roles, managing connection strings with credentials, enabling encryption, or auditing access.
