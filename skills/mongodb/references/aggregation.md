@@ -25,12 +25,12 @@
 | `$lookup` | `LEFT JOIN` | Join collections |
 | `$graphLookup` | Recursive CTE | Recursive/transitive joins |
 | `$unionWith` | `UNION ALL` | Combine collections |
-| `$facet` | — | Multiple sub-pipelines on same input |
+| `$facet` | — | Multiple sub-pipelines on same input. ⚠️ As first stage = COLLSCAN — put `$match` before it |
 | `$bucket` / `$bucketAuto` | — | Group into ranges |
 | `$setWindowFields` | Window functions | Ranking, running totals, moving averages |
 | `$densify` | — | Fill gaps in time series / sequences |
 | `$fill` | — | Fill null/missing values |
-| `$merge` | `INSERT ... ON CONFLICT UPDATE` | Upsert into collection (materialized views) |
+| `$merge` | `INSERT ... ON CONFLICT UPDATE` | Upsert into collection (materialized views). Can target source collection |
 | `$out` | `CREATE TABLE AS SELECT` | Replace entire collection (destructive) |
 
 ## SQL → Aggregation Mapping
@@ -42,10 +42,17 @@
 | `HAVING` | `$match` (after `$group`) |
 | `SELECT` | `$project` |
 | `ORDER BY` | `$sort` |
+| `LIMIT` | `$limit` |
+| `OFFSET` / `SKIP` | `$skip` |
+| `JOIN` / `LEFT JOIN` | `$lookup` |
+| `UNION ALL` | `$unionWith` |
 | `COUNT(*)` | `{ $group: { _id: null, n: { $sum: 1 } } }` |
 | `SUM(col)` | `{ $group: { _id: ..., total: { $sum: "$col" } } }` |
 | `DISTINCT` | `{ $group: { _id: "$field" } }` |
 | `CASE WHEN` | `$switch` or `$cond` |
+| Window functions | `$setWindowFields` |
+| `CREATE TABLE AS SELECT` | `$out` |
+| `INSERT ... ON CONFLICT UPDATE` | `$merge` |
 | `EXISTS (subquery)` | `$lookup` + `$match: { result: { $ne: [] } }` |
 
 ## $lookup Patterns
@@ -92,20 +99,30 @@ Not SBE-eligible. Runs sub-pipeline per input doc. Ensure sub-pipeline starts wi
 | `$facet` sub-pipeline | 100 MB | `allowDiskUse` does **NOT** help. Use `$limit` inside facets or separate aggregations |
 | Output document | 16 MB (BSON) | Use `$merge`/`$out` or restructure |
 
-```js
-db.collection.aggregate(pipeline, { allowDiskUse: true })
-```
-
 ### Optimizer Auto-Reordering
-- `$sort` → `$match` becomes `$match` → `$sort`
-- `$project` → `$match` splits independent filters before `$project`
-- `$lookup` → `$unwind` → `$match` coalesces into single `$lookup`
-- `$sort` → `$limit` coalesces into top-N sort
-- Adjacent `$match` stages combine with `$and`
+
+| Before | After | Why |
+|---|---|---|
+| `$project` → `$match` | `$match` (independent filters) → `$project` → `$match` (dependent) | Use index, reduce docs early |
+| `$sort` → `$match` | `$match` → `$sort` | Fewer docs to sort |
+| `$project`/`$unset` → `$skip` | `$skip` → `$project`/`$unset` | Skip before reshaping |
+| `$redact` → `$match` | `$match` (duplicate) → `$redact` → `$match` | Enable index use |
+
+### Optimizer Coalescence
+
+| Pattern | Becomes | Effect |
+|---|---|---|
+| `$sort` → `$limit` | `$sort` (with limit N) | Top-N sort, O(N) memory |
+| `$limit` → `$limit` | `$limit` (min of both) | |
+| `$skip` → `$skip` | `$skip` (sum of both) | |
+| `$match` → `$match` | `$match` (`$and` combined) | |
+| `$lookup` → `$unwind` → `$match` | `$lookup` (with unwinding + matching) | Avoids large intermediate arrays |
+| `$sort` → `$skip` → `$limit` | `$sort` (limit = skip+limit) → `$skip` → `$limit` | Top-(skip+limit) sort |
 
 ### Index-Eligible Stages
 - `$match` — only when first (after optimizer reordering)
 - `$sort` — only when not preceded by `$project`/`$unwind`/`$group`
+- `$group` — can use index for `$first`/`$last` with matching sort order
 - `$geoNear` — always uses geospatial index
 
 ## $merge for Materialized Views
@@ -123,18 +140,36 @@ db.orders.aggregate([
 ])
 ```
 
-## Useful Expression Operators
+`$merge` can write back to the **same** collection being aggregated.
 
+## Expression Operators
+
+### Commonly missed
 | Operator | Use |
 |---|---|
-| `$ifNull` | Coalesce nulls: `{ $ifNull: ["$field", default] }` |
+| `$ifNull` | `{ $ifNull: ["$field", defaultValue] }` — coalesce nulls |
+| `$mergeObjects` | Combine objects: `{ $mergeObjects: ["$defaults", "$overrides"] }` |
+| `$first` / `$last` (array) | `{ $first: "$arr" }` — cleaner than `$arrayElemAt` for [0] |
 | `$filter` | Filter array inline without `$unwind` |
 | `$map` | Transform array elements inline |
-| `$mergeObjects` | Combine objects: `{ $mergeObjects: ["$defaults", "$overrides"] }` |
-| `$first` / `$last` | Array element access (cleaner than `$arrayElemAt`) |
-| `$dateTrunc` | Truncate to unit: `{ $dateTrunc: { date: "$d", unit: "month" } }` |
+| `$reduce` | Fold over array: `{ $reduce: { input: "$arr", initialValue: 0, in: { $add: ["$$value", "$$this"] } } }` |
+| `$zip` | Combine parallel arrays |
 | `$getField` | Access fields with dots/special chars |
+| `$setField` | Set fields with special chars |
+| `$dateTrunc` | Truncate to unit: `{ $dateTrunc: { date: "$d", unit: "month" } }` |
+| `$dateAdd` / `$dateSubtract` | Date arithmetic |
 | `$convert` | Safe type conversion with `onError` fallback |
+| `$accumulator` | Custom JS accumulator in `$group` (escape hatch) |
+| `$function` | Arbitrary JS expression (escape hatch) |
+
+### Commonly misused
+| Pattern | Problem | Fix |
+|---|---|---|
+| `{ $eq: [field, null] }` | Matches both `null` and missing | Use `$type` check if distinction matters |
+| String concat with `+` | Not valid in agg expressions | Use `$concat` |
+| `$toObjectId` on invalid input | Throws | Use `$convert` with `onError` |
+| `$project` + `$addFields` | Redundant reshaping | Use `$set` to add, `$project` only at end |
+| `$group` + `$push: "$$ROOT"` | Accumulates entire docs in memory | Use `$limit` upstream or `$topN` |
 
 ## Common Mistakes
 
@@ -143,7 +178,14 @@ db.orders.aggregate([
 // ❌ Processes N×M documents
 [{ $unwind: "$items" }, { $match: { "items.status": "shipped" } }]
 
-// ✅ Filter first, or use $filter to avoid $unwind entirely
+// ✅ Double-$match: pre-filter docs, then filter unwound elements
+[
+  { $match: { "items.status": "shipped" } },
+  { $unwind: "$items" },
+  { $match: { "items.status": "shipped" } }
+]
+
+// ✅ Even better — avoid $unwind entirely with $filter
 [{ $project: { items: { $filter: { input: "$items", cond: { $eq: ["$$this.status", "shipped"] } } } } }]
 ```
 
