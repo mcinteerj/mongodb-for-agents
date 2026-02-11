@@ -1,0 +1,2 @@
+# MongoDB Agent Skill
+TODO
