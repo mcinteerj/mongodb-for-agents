@@ -20,6 +20,8 @@ Always use `explain("executionStats")` — queryPlanner alone lacks runtime numb
 
 `COLLSCAN` — full scan (fix immediately) · `IXSCAN` — index scan · `FETCH` — doc retrieval · `SORT` — in-memory sort (100 MB limit, errors unless `allowDiskUse: true`) · `SHARD_MERGE` · `EXPRESS` (8.0+)
 
+Use `explain("allPlansExecution")` to see partial trial-phase stats for rejected plans — useful for understanding why the optimizer chose the winning plan.
+
 ### Decision Ratios
 
 | Ratio | Ideal | If Bad |
@@ -35,6 +37,29 @@ Always use `explain("executionStats")` — queryPlanner alone lacks runtime numb
 3. **SORT stage present?** → Index doesn't provide sort order. Add sort fields to compound index after equality fields.
 4. **High docsExamined/nReturned with IXSCAN?** → Index finds candidates but filter discards most. Add filter fields to index.
 5. **Ratios ~1.0 but slow?** → Working set exceeds cache, or large documents. Add projection, check cache metrics.
+
+---
+
+## Common Bottlenecks
+
+- **Unbounded queries**: missing `limit()` returns entire result set — always bound reads
+- **Unanchored regex**: `{field: /pattern/}` can't use index; `{field: /^prefix/}` can
+- **`$ne` / `$nin`**: generally can't use indexes efficiently, degrades to scan
+- **Large `$in` arrays**: >1000 elements degrades query planning performance
+- **Missing projections**: without projection, full document transferred + deserialized; always project needed fields only
+- **In-memory sorts**: `SORT` stage without index-provided order; 100 MB limit, then errors unless `allowDiskUse: true`
+- **Large document fetches**: documents >16 KB stress WiredTiger cache; working set exceeding cache → eviction storms
+
+---
+
+## Document Size Guidance
+
+- Max BSON document: **16 MB**. Practical target: **<100 KB** for optimal cache/network performance.
+- WiredTiger stores documents **uncompressed** in cache — a 10 KB on-disk doc may be 30–50 KB in cache (3–5× expansion).
+- Use projections aggressively. 1000 queries × 50 KB docs = 50 MB transfer; with projection to needed fields: ~2 MB.
+- Split large sub-documents into separate collections if accessed independently.
+- Monitor: `db.collection.stats().avgObjSize` — track growth over time.
+- GridFS for binary data >256 KB or any file >16 MB.
 
 ---
 
@@ -63,12 +88,15 @@ Always use `explain("executionStats")` — queryPlanner alone lacks runtime numb
 ## Database Profiler
 
 ```javascript
-// Level 0: off | Level 1: slow ops | Level 2: all ops
-db.setProfilingLevel(1, { slowms: 100 })
+// Level 0: off (default) | Level 1: slow ops | Level 2: all ops
+db.setProfilingLevel(1, { slowms: 100 })  // default slowms: 100ms
 db.setProfilingLevel(1, { slowms: 50, sampleRate: 0.5 }) // 50% sampling
 ```
 
 **Level 2 degrades throughput significantly.** Use level 1 in production.
+
+- **filter** (4.4+): profile only matching operations (e.g., specific collections/commands)
+- **Alternative**: `$queryStats` aggregation stage — lower overhead than profiler for production monitoring
 
 ### Reading Profile Data
 
@@ -107,6 +135,7 @@ db.setProfilingLevel(1, {slowms: 100})
 | Concern | Consistency | Relative Latency | Notes |
 |---------|------------|-------------------|-------|
 | `"local"` (default) | May read uncommitted | Baseline | Can read rolled-back data |
+| `"available"` | Same as local, no causal | Baseline | ⚠️ Sharded: may return orphaned docs during migrations |
 | `"majority"` | Committed only | +5–50ms | Increases cache pressure (snapshot history) |
 | `"linearizable"` | Linearizable (single-doc) | +50–200ms | Issues no-op write to confirm primary |
 | `"snapshot"` | Snapshot isolation | Medium | Multi-doc transactions only |
@@ -118,6 +147,8 @@ db.setProfilingLevel(1, {slowms: 100})
 | `primary` | Consistency | All reads hit primary |
 | `secondary` / `secondaryPreferred` | Offload primary, analytics | Stale by replication lag (0–10ms typical, can spike) |
 | `nearest` | Geo-distributed apps | Saves 50–200ms cross-DC; may be stale |
+
+**Caveat**: secondary reads don't scale total capacity linearly — secondaries also apply oplog entries, consuming resources.
 
 ---
 
@@ -139,6 +170,36 @@ var c = db.serverStatus().wiredTiger.cache
 ```
 
 Cache default: **50% of (RAM − 1 GB)**. App-thread eviction starts at 95% full — operations stall.
+
+### WiredTiger Eviction Thresholds
+
+| Trigger | Default | Effect |
+|---------|---------|--------|
+| `eviction_target` | **80%** full | Background eviction threads start (default 4 threads) |
+| `eviction_trigger` | **95%** full | **App threads** join eviction — ops stall |
+| `eviction_dirty_target` | **5%** dirty | Background eviction prioritizes dirty pages |
+| `eviction_dirty_trigger` | **20%** dirty | **App threads** throttle on dirty writes |
+
+---
+
+## Bulk Operations
+
+```javascript
+db.col.bulkWrite([
+  {insertOne: {document: {a: 1}}},
+  {updateOne: {filter: {a: 2}, update: {$set: {b: 2}}}},
+  {deleteOne: {filter: {a: 3}}}
+], {ordered: false})
+```
+
+- **Batch size**: 1,000–10,000 ops per batch (sweet spot). Wire protocol limit: 16 MB per message; driver auto-splits.
+- `ordered: false` — ~2–5× faster than ordered (parallelism + continues on error)
+- `ordered: true` (default) — stops at first error, sequential execution
+- Fewer network round-trips than individual ops
+- **Import pattern**: drop non-essential indexes → bulk insert (`w: 1`, `ordered: false`) → recreate indexes
+- `updateMany`/`deleteMany` hold intent locks — can block other ops on same collection
+
+---
 
 ### Active Operations
 ```javascript
