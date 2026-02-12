@@ -205,4 +205,6 @@ db.orders.aggregate([
 
 ### 6. Missing indexes on `$match` fields and `$lookup` foreign fields.
 
+See indexing.md → "Missing index on $lookup foreign field" for the full pattern and fix.
+
 ### 7. `$facet` output exceeding 16MB — use `$limit` inside sub-pipelines.

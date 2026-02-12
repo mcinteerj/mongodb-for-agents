@@ -33,10 +33,10 @@ Use `explain("allPlansExecution")` to see partial trial-phase stats for rejected
 ### Decision Tree
 
 1. **COLLSCAN?** → Add index on filter/sort fields.
-2. **IXSCAN but high keysExamined/nReturned?** → Index covers filter but not selectively. Refine compound index (ESR rule).
+2. **IXSCAN but high keysExamined/nReturned?** → Index covers filter but not selectively. Refine compound index (ESR rule). (See indexing.md → ESR Rule)
 3. **SORT stage present?** → Index doesn't provide sort order. Add sort fields to compound index after equality fields.
 4. **High docsExamined/nReturned with IXSCAN?** → Index finds candidates but filter discards most. Add filter fields to index.
-5. **Ratios ~1.0 but slow?** → Working set exceeds cache, or large documents. Add projection, check cache metrics.
+5. **Ratios ~1.0 but slow?** → Working set exceeds cache, or large documents. Add projection, check cache metrics. (See schema-design.md → Document Size)
 
 ---
 
