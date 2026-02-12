@@ -26,7 +26,7 @@
 ```
 
 ### One-to-Millions → Reference from child side
-```json
+```javascript
 // logs collection — NEVER embed unbounded arrays in parent
 { "_id": "log1", "host_id": "server42", "message": "...", "ts": ISODate() }
 ```
@@ -36,7 +36,7 @@ Small cardinality: array of IDs on one/both sides. Large cardinality: junction c
 
 ### User Permissions (Many-to-Many — Good vs Bad)
 
-```json
+```javascript
 // ❌ BAD: Full role objects embedded — duplicated permissions, update = touch every user
 { "user": "Jake", "roles": [
     { "role_id": "r1", "name": "admin", "permissions": [/* 200 perms */] }
@@ -68,7 +68,7 @@ Small cardinality: array of IDs on one/both sides. Large cardinality: junction c
 
 ### E-Commerce Order
 
-```json
+```javascript
 // ❌ BAD: 4 lookups to render one page
 // orders → customers (ref) → items (ref) → products (ref) → addresses (ref)
 
@@ -87,7 +87,7 @@ Small cardinality: array of IDs on one/both sides. Large cardinality: junction c
 
 ### Blog Comments
 
-```json
+```javascript
 // ❌ BAD: Unbounded array, 16MB risk
 { "_id": "post1", "comments": [ /* 50,000 entries */ ] }
 
@@ -98,7 +98,7 @@ Small cardinality: array of IDs on one/both sides. Large cardinality: junction c
 
 ### IoT Sensor Data
 
-```json
+```javascript
 // ❌ BAD: One doc per reading = 86,400 docs/sensor/day
 { "sensor": "temp1", "value": 22.1, "ts": ISODate("2025-01-15T00:00:01") }
 
