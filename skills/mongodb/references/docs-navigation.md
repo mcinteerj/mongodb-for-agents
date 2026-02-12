@@ -78,7 +78,7 @@ Default `/manual/` = latest stable. Pin only for version-specific debugging.
 
 1. **Construct URL directly** — use patterns above. Fastest for known topics. Agg stages are the most predictable: `aggregation/{stage}/`.
 2. **Web search with `site:mongodb.com/docs {query}`** — for discovery, error messages, niche topics, or when URL isn't guessable.
-3. **Fetch the page** — MongoDB docs are JS-rendered, so use a browser-based fetcher if available. Simple HTTP GET may return incomplete content.
+3. **Fetch the page** — MongoDB docs are server-rendered HTML. A simple HTTP GET (curl/fetch) returns full content, but embedded in verbose HTML with heavy CSS/SVG. Use an HTML-to-text extractor if available for cleaner output.
 4. **Development hub** (`/docs/development/`) — best single-page index for orientation across all dev topics.
 
 ## Gotchas
