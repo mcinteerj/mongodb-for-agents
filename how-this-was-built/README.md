@@ -120,7 +120,7 @@ Each fix was applied and pushed immediately.
 
 The full, unedited Pi session log is available at [`pi_session_log.html`](pi_session_log.html).
 
-> GitHub doesn't render HTML files directly. To view: download the file and open it in your browser, or view it at [mcinteerj.github.io/mongodb-for-agents/pi_session_log.html](https://mcinteerj.github.io/mongodb-for-agents/pi_session_log.html) (if GitHub Pages is enabled).
+> GitHub doesn't render HTML files directly. To view: download the file and open it in your browser, or view it at [mcinteerj.github.io/mongodb-for-agents/how-this-was-built/pi_session_log.html](https://mcinteerj.github.io/mongodb-for-agents/how-this-was-built/pi_session_log.html) (if GitHub Pages is enabled).
 
 ## Tools Used
 
