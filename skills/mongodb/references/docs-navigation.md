@@ -13,9 +13,9 @@ All URLs prefix: `https://www.mongodb.com/docs`
 | Agg Stages | `/manual/reference/operator/aggregation/{stage}/` | `.../aggregation/lookup/` |
 | Query Operators | `/manual/reference/operator/query/{op}/` | `.../query/eq/` |
 | Atlas | `/atlas/{feature}/` | `/atlas/atlas-search/` |
-| mongosh | `/mongodb-shell/` | — |
-| Database Tools | `/database-tools/` | — |
-| Atlas CLI | `/atlas/cli/current/` | — |
+| mongosh | `/mongodb-shell/{topic}/` | `/mongodb-shell/crud/` |
+| Database Tools | `/database-tools/{tool}/` | `/database-tools/mongodump/` |
+| Atlas CLI | `/atlas/cli/current/{command}/` | `/atlas/cli/current/atlas-clusters-create/` |
 | Pinned Version | `/manual/v{MAJOR}.{MINOR}/...` | `/manual/v8.0/indexes/` |
 
 Default `/manual/` = latest stable. Pin only for version-specific debugging.
