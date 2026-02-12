@@ -78,8 +78,9 @@ Default `/manual/` = latest stable. Pin only for version-specific debugging.
 
 1. **Construct URL directly** — use patterns above. Fastest for known topics. Agg stages are the most predictable: `aggregation/{stage}/`.
 2. **Web search with `site:mongodb.com/docs {query}`** — for discovery, error messages, niche topics, or when URL isn't guessable.
-3. **Fetch the page** — MongoDB docs are server-rendered HTML. A simple HTTP GET (curl/fetch) returns full content, but embedded in verbose HTML with heavy CSS/SVG. Use an HTML-to-text extractor if available for cleaner output.
-4. **Development hub** (`/docs/development/`) — best single-page index for orientation across all dev topics.
+3. **Fetch as Markdown (preferred)** — append `.md` to any doc path to get raw Markdown instead of HTML. E.g. `https://www.mongodb.com/docs/manual/core/read-preference.md`. Far more token-efficient for agents — no HTML/CSS/SVG noise. Strip trailing slash before appending `.md`.
+4. **Fetch as HTML (fallback)** — if `.md` returns 404, fall back to HTML GET + text extraction.
+5. **Development hub** (`/docs/development/`) — best single-page index for orientation across all dev topics.
 
 ## Gotchas
 
