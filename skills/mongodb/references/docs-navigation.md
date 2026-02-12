@@ -77,11 +77,9 @@ Default `/manual/` = latest stable. Pin only for version-specific debugging.
 ## Search Strategy
 
 1. **Construct URL directly** — use patterns above. Fastest for known topics. Agg stages are the most predictable: `aggregation/{stage}/`.
-2. **`brave-search "site:mongodb.com/docs {query}"`** — for discovery, error messages, niche topics, or when URL isn't guessable.
-3. **`firecrawl scrape {url}`** — to extract page content. MongoDB docs are JS-rendered; `trafilatura` fails on them.
+2. **Web search with `site:mongodb.com/docs {query}`** — for discovery, error messages, niche topics, or when URL isn't guessable.
+3. **Fetch the page** — MongoDB docs are JS-rendered, so use a browser-based fetcher if available. Simple HTTP GET may return incomplete content.
 4. **Development hub** (`/docs/development/`) — best single-page index for orientation across all dev topics.
-
-> **Note:** Tool recommendations above (firecrawl, trafilatura, brave-search) are suggestions. Agents should use whatever web fetching tools they have available — any HTTP client, browser automation, or MCP-based fetch tool will work.
 
 ## Gotchas
 
