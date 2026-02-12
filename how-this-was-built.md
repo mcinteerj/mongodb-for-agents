@@ -10,10 +10,40 @@ This entire repo was built in a single session by an AI agent and a human with o
 
 The sub-agents (also Claude, also running in Pi):
 
-- **Rita** 🔍 — The researcher. Given a topic, she goes wide with web search, reads primary sources, and produces structured research documents. She ran ~15 research tasks across this build.
+- **Rita** 🔍 — The researcher. Given a topic, she goes wide with web search, reads primary sources, and produces structured research documents. More on her below.
 - **Peter** 📋 — The planner. Fed research outputs and constraints, he produced the phased execution plan with dependency graphs and parallelization strategy.
 - **Bob** 🔨 — The builder. Took research outputs and built the actual markdown files. Wrote every reference doc, the SKILL.md, AGENTS.md, README, and MCP guide.
 - **Ruth** 👀 — The reviewer. Read Bob's work alongside Rita's original research and flagged accuracy issues, missing content, and inconsistencies. Every domain reference went through her.
+
+## How Rita Works
+
+Rita ran **14 research tasks** across this build, producing **~120KB of structured research** that fed every reference file.
+
+Her workflow for each task:
+1. **Go wide** — multiple `brave-search` queries to find primary sources, blog posts, Stack Overflow threads, and GitHub repos. Averaged **~5 web searches per task**, sometimes up to 19 for broad topics.
+2. **Go deep** — fetch and extract content from the most promising URLs using `trafilatura` and `firecrawl`. Averaged **~8 page fetches per task**, reading MongoDB official docs, driver docs, and community resources.
+3. **Synthesize** — distill findings into a structured markdown document with sections, tables, code examples, and anti-patterns. Saved to `~/temp/agent/` for Bob to consume.
+4. **Supplement with Perplexity** — for topics needing synthesis across many sources (agent ecosystem analysis, domain prioritization), she used `perplexity` for broader research sweeps.
+
+Across all 14 tasks: **~100 web searches**, **~110 page fetches**, **~10 perplexity queries**, producing research docs ranging from 70 to 531 lines each.
+
+Her output format was consistent: numbered sections, concrete code examples, comparison tables, anti-pattern callouts, and source attribution. This structure made it easy for Bob to build from and Ruth to verify against.
+
+### What She Produced
+
+| Research Task | Output Size | Key Sources |
+|---|---|---|
+| Agent structure patterns (MCP vs rules vs skills) | 180 lines | GitHub repos, agent docs, community posts |
+| MongoDB domain prioritization | 315 lines | MongoDB docs, University, Stack Overflow |
+| Cross-agent file format compatibility | 102 lines | Claude/Cursor/Codex/Gemini/Windsurf docs |
+| MongoDB docs structure & navigation | 147 + 70 lines | mongodb.com/docs, llms.txt analysis |
+| Schema design best practices | 531 lines | MongoDB manual, data modeling patterns |
+| Indexing strategy | 411 lines | MongoDB manual, index reference |
+| Aggregation pipelines | 440 lines | MongoDB manual, aggregation reference |
+| Performance tuning | 352 lines | MongoDB manual, server status reference |
+| Atlas Search | 471 lines | Atlas Search docs |
+| Vector Search | 314 lines | Atlas Vector Search docs |
+| Security & auth | 264 lines | MongoDB security docs |
 
 ## The Process
 
